@@ -1,0 +1,9 @@
+/**
+ * 
+ */
+/**
+ * 
+ */
+module CHViettel {
+	requires java.sql;
+}

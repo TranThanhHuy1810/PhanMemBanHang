@@ -1,0 +1,241 @@
+package DAO;
+
+import javax.swing.*;
+
+import java.sql.*;
+import java.text.SimpleDateFormat;
+import java.util.ArrayList;
+import java.util.Date;
+import java.util.List;
+
+import Model.ComboItem;
+public class Function {
+
+    private static Connection conn;
+
+    // Constructor để truyền kết nối từ ngoài vào
+    public Function(Connection connection) {
+        conn = connection;
+    }
+    public static boolean checkKey(String sql) {
+        try (PreparedStatement pst = conn.prepareStatement(sql);
+             ResultSet rs = pst.executeQuery()) {
+            return rs.next();
+        } catch (SQLException e) {
+            e.printStackTrace();
+            return false;
+        }
+    }
+    
+    public static void runSQL(String sql) {
+        try (PreparedStatement pst = conn.prepareStatement(sql)) {
+            pst.executeUpdate();
+        } catch (SQLException e) {
+            JOptionPane.showMessageDialog(null, e.getMessage(), "Error", JOptionPane.ERROR_MESSAGE);
+        }
+    }
+    
+    public static List<List<Object>> getDataToTable(String sql) {
+        List<List<Object>> table = new ArrayList<>();
+        try (PreparedStatement pst = conn.prepareStatement(sql);
+             ResultSet rs = pst.executeQuery()) {
+            ResultSetMetaData metaData = rs.getMetaData();
+            int columnCount = metaData.getColumnCount();
+            
+            while (rs.next()) {
+                List<Object> row = new ArrayList<>();
+                for (int i = 1; i <= columnCount; i++) {
+                    row.add(rs.getObject(i));
+                }
+                table.add(row);
+            }
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+        return table;
+    }
+    
+    public static void runSqlDel(String sql) {
+        try (PreparedStatement pst = conn.prepareStatement(sql)) {
+            pst.executeUpdate();
+        } catch (SQLException e) {
+            JOptionPane.showMessageDialog(null, "Dữ liệu đang được dùng, không thể xoá...\n" + e.getMessage(), "Thông báo", JOptionPane.ERROR_MESSAGE);
+        }
+    }
+    public static void fillCombo(String sql, JComboBox<ComboItem> comboBox, String valueColumn, String displayColumn) {
+        try (Connection conn = DriverManager.getConnection("jdbc:sqlserver://DESKTOP-P2DNTFQ:1433;databaseName=QLCHCL;encrypt=true;trustServerCertificate=true", "sa", "12345");
+             Statement stmt = conn.createStatement();
+             ResultSet rs = stmt.executeQuery(sql)) {
+
+            // Tạo một DefaultComboBoxModel để chứa dữ liệu và chỉ định kiểu đối tượng ComboItem
+            DefaultComboBoxModel<ComboItem> model = new DefaultComboBoxModel<>();
+
+            while (rs.next()) {
+                String value = rs.getString(valueColumn);  // Lấy giá trị của MAHANG
+                String display = rs.getString(displayColumn);  // Lấy giá trị của TENSP
+                model.addElement(new ComboItem(value, display)); // Thêm ComboItem vào model
+            }
+
+            comboBox.setModel(model);  // Gán model vào comboBox
+
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+    }
+
+
+    // Phương thức lấy giá trị của trường
+    public static String getFieldValues(String sql) {
+        Statement stmt = null;
+        ResultSet rs = null;
+        String result = "";
+        
+        try {
+            // Kiểm tra kết nối trước khi sử dụng
+            if (conn == null || conn.isClosed()) {
+                // Nếu conn là null hoặc đã đóng, khởi tạo lại kết nối
+                conn = DriverManager.getConnection(
+                    "jdbc:sqlserver://DESKTOP-P2DNTFQ:1433;databaseName=QLCHCL;encrypt=true;trustServerCertificate=true",
+                    "sa", "12345"
+                );
+            }
+
+            // Tạo statement và thực thi truy vấn
+            stmt = conn.createStatement();
+            rs = stmt.executeQuery(sql);
+
+            // Lấy kết quả từ resultSet
+            if (rs.next()) {
+                result = rs.getString(1); // Chắc chắn có dữ liệu ở cột đầu tiên
+            }
+
+        } catch (SQLException e) {
+            e.printStackTrace();  // Xử lý exception nếu có lỗi xảy ra
+        } finally {
+            // Đảm bảo đóng kết nối và statement
+            try {
+                if (rs != null) {
+                    rs.close();
+                }
+                if (stmt != null) {
+                    stmt.close();
+                }
+            } catch (SQLException e) {
+                e.printStackTrace();  // Xử lý lỗi khi đóng kết nối
+            }
+        }
+        
+        return result;  // Trả về kết quả lấy từ cơ sở dữ liệu
+    }
+
+    // Tạo khóa từ tiền tố
+    public static String createKey(String tiento) {
+        SimpleDateFormat sdf = new SimpleDateFormat("ddMMyyyy_HHmmss");
+        return tiento + sdf.format(new Date());
+    }
+
+    // Kiểm tra ngày có hợp lệ không
+    public static boolean isDate(String date) {
+        try {
+            SimpleDateFormat sdf = new SimpleDateFormat("dd/MM/yyyy");
+            sdf.setLenient(false);
+            sdf.parse(date);
+            return true;
+        } catch (Exception e) {
+            return false;
+        }
+    }
+
+    // Chuyển đổi ngày tháng (nếu cần thiết, bạn có thể thêm logic chuyển đổi ở đây)
+    public static String convertDateTime(String date) {
+        return date; // Chưa có logic chuyển đổi, có thể thêm vào nếu cần
+    }
+
+    private static String docHangChuc(int so, boolean daydu) {
+        String chuoi = "";
+        int chuc = so / 10;
+        int donvi = so % 10;
+
+        // Khởi tạo mảng mNumText chứa các chữ số
+        String[] mNumText = {"", "một", "hai", "ba", "bốn", "năm", "sáu", "bảy", "tám", "chín"};
+        
+        if (chuc > 1) {
+            chuoi = " " + mNumText[chuc] + " mươi";
+            if (donvi == 1) chuoi += " mốt";
+        } else if (chuc == 1) {
+            chuoi = " mười";
+            if (donvi == 1) chuoi += " một";
+        } else if (daydu && donvi > 0) {
+            chuoi = " lẻ";
+        }
+        if (donvi == 5 && chuc >= 1) {
+            chuoi += " lăm";
+        } else if (donvi > 1 || (donvi == 1 && chuc == 0)) {
+            chuoi += " " + mNumText[donvi];
+        }
+        return chuoi;
+    }
+
+    // Hàm đọc hàng trăm
+    private static String docHangTram(int so, boolean daydu) {
+        String chuoi = "";
+        int tram = so / 100;
+        so = so % 100;
+        
+        // Khởi tạo mảng mNumText chứa các chữ số
+        String[] mNumText = {"", "một", "hai", "ba", "bốn", "năm", "sáu", "bảy", "tám", "chín"};
+        
+        if (daydu || tram > 0) {
+            chuoi = " " + mNumText[tram] + " trăm" + docHangChuc(so, true);
+        } else {
+            chuoi = docHangChuc(so, false);
+        }
+        return chuoi;
+    }
+
+    // Hàm đọc hàng triệu
+    private static String docHangTrieu(double so, boolean daydu) {
+        String chuoi = "";
+        int trieu = (int) (so / 1000000);
+        so = so % 1000000;
+
+        if (trieu > 0) {
+            chuoi = docHangTram(trieu, daydu) + " triệu";
+            daydu = true;
+        }
+        int nghin = (int) (so / 1000);
+        so = so % 1000;
+
+        if (nghin > 0) {
+            chuoi += docHangTram(nghin, daydu) + " nghìn";
+            daydu = true;
+        }
+        if (so > 0) {
+            chuoi += docHangTram((int) so, daydu);
+        }
+        return chuoi;
+    }
+
+    // Hàm chuyển số thành chữ
+    public static String chuyenSoSangChuoi(double tongMoi) {
+        // Khởi tạo mảng mNumText chứa chữ số 0
+        String[] mNumText = {"không"};
+        
+        // Kiểm tra nếu số bằng 0
+        if (tongMoi == 0) return mNumText[0];
+        
+        String chuoi = "", hauto = "";
+        double ty;
+        do {
+            ty = tongMoi / 1000000000;
+            tongMoi = tongMoi % 1000000000;
+            if (ty > 0) {
+                chuoi = docHangTrieu(ty, true) + hauto + chuoi;
+            } else {
+                chuoi = docHangTrieu(ty, false) + hauto + chuoi;
+            }
+            hauto = " tỷ";
+        } while (ty > 0);
+        return chuoi + " đồng";
+    }
+}
